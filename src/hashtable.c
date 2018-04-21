@@ -1,5 +1,21 @@
 #include "hashtable.h"
 
+HashtableItem * create_HashtableItem(char * key, void * data){
+  // Allocate space for a Item
+  // - return NULL if error
+  HashtableItem * newItem = (HashtableItem*) malloc(sizeof(HashtableItem));
+  // - Check for unsuccessful table malloc
+  if(newItem == NULL) {
+    perror("Error allocating memory for new buckets in create_Hashtable().");
+    return NULL;
+  }
+  // Build Struct
+  *newItem = (HashtableItem) {
+    .key = key,
+    .data = data
+  };
+}
+
 // Create a new Hashtable
 Hashtable * create_Hashtable(int size){
 
@@ -42,9 +58,15 @@ void free_Hashtable(Hashtable * target){
   int i = 0;
   for (i = 0; i < target->size; i++) {
     if (target->table[i] != NULL){
+      // Free each item in table bucket
+      LLNode * ptr = target->table[i]->head;
+      while(ptr != NULL){
+        free(ptr->data);
+        ptr = ptr->next;
+      }
+      // Free Table
       free_LL(target->table[i]);
     }
-
   }
   // Free Buckets
   free(target->table);
@@ -87,13 +109,15 @@ int insert(Hashtable * table, char * key, void * data){
     bucket = create_LL();
   }
 
+  HashtableItem * newItem = create_HashtableItem(key, data);
+
   // Append data to bucket
-  push(bucket, data);
+  push(bucket, newItem);
   return 1;
 }
 
 // Remove data with a given key into a Hashtable
-int remove_key(Hashtable * table, char * target_key, void * data){
+int remove_key(Hashtable * table, char * target_key){
   if (target_key == NULL) {
     perror("Error inserting NULL key in remove_key().");
     return -1;
@@ -113,9 +137,64 @@ int remove_key(Hashtable * table, char * target_key, void * data){
     return -1;
   }
 
+  void * data = lookup_key(table, target_key);
+
   // Remove data from bucket
   remove_target(bucket, data);
   return 1;
+}
+
+void * lookup_key(Hashtable * table, char * target_key){
+  if (target_key == NULL) {
+    perror("Error looking up NULL key in lookup_key().");
+    return NULL;
+  }
+
+  // Get hash_value
+  int hash_value = hash(table, target_key);
+  if (hash_value < 0) {
+    return NULL;
+  }
+
+  // Look at each item in table bucket
+  LLNode * ptr = table->table[hash_value]->head;
+  while(ptr != NULL){
+    if (((HashtableItem *) ptr->data)->key == target_key) {
+      return ((HashtableItem *) ptr->data)->data;
+    }
+    ptr = ptr->next;
+  }
+  return NULL;
+}
+
+void print_hashtable(Hashtable * table){
+  if(table == NULL){
+    return ;
+  }
+
+  printf("---------Hashtable---------\n");
+
+  int b = 0;
+  for (b = 0; b < table->size; b++) {
+    printf("[%d] -> ");
+
+    if (table->table[b] == NULL) {
+      printf("/\n");
+      continue;
+    }
+
+    LLNode * ptr = table->table[b]->head;
+    while(ptr != NULL){
+      HashtableItem * item = (HashtableItem *) ptr->data;
+      printf("%s -> \n", item->key);
+      ptr = ptr->next;
+    }
+
+    printf("/\n");
+
+  }
+
+  printf("---------End Hashtable---------\n");
 }
 
 int main(int argc, char const *argv[]) {
